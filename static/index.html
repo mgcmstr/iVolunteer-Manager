@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>i志愿 考勤比对工具</title>
+<style>
+  /* ============================================
+     Apple-Inspired UI Design
+     原则: Clarity(清晰) · Deference(谦让) · Depth(层次)
+     字体系统栈 · 中性背景 · 单一强调色 · 4/8/16/24/48 间距节奏
+     ============================================ */
+  :root {
+    /* 色彩（Light） */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f7;
+    --text-primary: #1d1d1f;
+    --text-secondary: #86868b;
+    --accent: #41b8de;                 /* i志愿主色 */
+    --accent-soft: rgba(65, 184, 222, 0.12);
+    --green: #34c759;
+    --green-soft: rgba(52, 199, 89, 0.14);
+    --red: #ff3b30;
+    --red-soft: rgba(255, 59, 48, 0.12);
+    --orange: #ff9500;
+    --orange-soft: rgba(255, 149, 0, 0.14);
+    --gray-soft: rgba(0, 0, 0, 0.04);
+    --border: rgba(0, 0, 0, 0.08);
+    --card-bg: rgba(255, 255, 255, 0.80);
+    --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.06);
+    --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.18);
+    /* 间距节奏 */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 48px;
+    /* 字体层级 */
+    --text-hero: 600 30px/1.2;
+    --text-title: 600 20px/1.3;
+    --text-body: 400 15px/1.5;
+    --text-caption: 400 13px/1.4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #000000;
+      --bg-secondary: #1d1d1f;
+      --text-primary: #f5f5f7;
+      --text-secondary: #86868b;
+      --accent: #41b8de;
+      --accent-soft: rgba(65, 184, 222, 0.22);
+      --green: #32d74b;
+      --green-soft: rgba(50, 215, 75, 0.18);
+      --red: #ff453a;
+      --red-soft: rgba(255, 69, 58, 0.18);
+      --orange: #ff9f0a;
+      --orange-soft: rgba(255, 159, 10, 0.18);
+      --gray-soft: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.12);
+      --card-bg: rgba(28, 28, 30, 0.72);
+      --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.5);
+      --shadow-float: 0 20px 60px rgba(0, 0, 0, 0.7);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+                 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 32px 24px 72px; }
+
+  /* 入场动效 */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeUp 0.45s cubic-bezier(0.25, 0.1, 0.25, 1) both; }
+
+  /* 顶部（毛玻璃，仅此一处保留，blur 降为 12px 降成本） */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+    padding: 22px 28px;
+    margin-bottom: 20px;
+  }
+  .logo-row { display: flex; align-items: center; gap: 12px; }
+  .logo-img { height: 30px; width: auto; }
+  .logo h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .logo p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .login-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px; border-radius: 980px;
+    font-size: 13px; font-weight: 500;
+  }
+  .badge-ok { background: var(--green-soft); color: var(--green); }
+  .badge-fail { background: var(--red-soft); color: var(--red); }
+  .badge-wait { background: var(--orange-soft); color: var(--orange); }
+
+  /* 按钮（胶囊） */
+  button {
+    font-family: inherit; border: none; cursor: pointer;
+    border-radius: 980px;
+    padding: 9px 20px; font-size: 14px; font-weight: 500;
+    transition: transform 0.2s ease, filter 0.2s ease,
+                background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { transform: scale(1.02); filter: brightness(0.94); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-outline {
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { transform: scale(1.02); filter: brightness(1.1); }
+  .btn-sm { padding: 6px 16px; font-size: 13px; }
+  .btn-link { background: none; color: var(--accent); padding: 5px 10px; font-size: 13px; }
+  .btn-link:hover { text-decoration: underline; }
+
+  /* 卡片（实色半透明背景，避免滚动时整屏毛玻璃重绘） */
+  .card {
+    background: var(--card-bg);
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+    padding: 24px 28px;
+  }
+  .card + .card { margin-top: 16px; }
+  .card-title {
+    font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+    margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-title small { font-weight: 400; color: var(--text-secondary); font-size: 13px; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th {
+    background: transparent; font-weight: 500; color: var(--text-secondary);
+    font-size: 12px; letter-spacing: 0.02em; white-space: nowrap;
+  }
+  tbody tr { transition: background-color 0.12s ease; }
+  tbody tr:hover td { background: var(--gray-soft); }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { text-align: center; }
+  .tag {
+    display: inline-block; padding: 3px 12px; border-radius: 980px;
+    font-size: 12px; font-weight: 500;
+  }
+  .tag-green { background: var(--green-soft); color: var(--green); }
+  .tag-red { background: var(--red-soft); color: var(--red); }
+  .tag-gray { background: var(--gray-soft); color: var(--text-secondary); }
+  .tag-blue { background: var(--accent-soft); color: var(--accent); }
+  .tag-orange { background: var(--orange-soft); color: var(--orange); }
+
+  /* 统计卡（去掉毛玻璃和位移 hover，改用边框反馈） */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .stat {
+    background: var(--card-bg);
+    border-radius: 16px; border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+    padding: 18px 16px; text-align: center;
+    transition: border-color 0.2s ease;
+  }
+  .stat:hover { border-color: var(--accent); }
+  .stat .num { font-size: 32px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; }
+  .stat .label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+  .stat-danger .num { color: var(--red); }
+  .stat-success .num { color: var(--green); }
+  .stat-primary .num { color: var(--accent); }
+  .stat-warn .num { color: var(--orange); }
+
+  /* 弹窗（遮罩不用毛玻璃，用纯色 + 少量过渡，避免全屏模糊） */
+  .modal-mask {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.4);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: var(--bg-primary);
+    border-radius: 20px; width: 100%; max-width: 920px;
+    max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: var(--shadow-float);
+    border: 1px solid var(--border);
+  }
+  .modal-head {
+    padding: 22px 28px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .modal-head h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .modal-body { padding: 24px 28px; overflow-y: auto; flex: 1; }
+  .modal-foot {
+    padding: 16px 28px; border-top: 1px solid var(--border);
+    display: flex; gap: 10px; justify-content: flex-end; align-items: center; flex-wrap: wrap;
+  }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 10px 18px; cursor: pointer; font-size: 14px; font-weight: 500;
+    color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.2s ease;
+  }
+  .tab:hover { color: var(--text-primary); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .count { font-size: 12px; margin-left: 4px; opacity: 0.8; }
+
+  /* 人员列表 */
+  .people-table { width: 100%; font-size: 13px; }
+  .people-table th { font-size: 12px; }
+  .empty { text-align: center; color: var(--text-secondary); padding: 36px; font-size: 14px; }
+
+  /* toast（实色背景，不用毛玻璃） */
+  .toast {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-8px);
+    background: rgba(29, 29, 31, 0.94);
+    color: #fff; padding: 11px 24px; border-radius: 980px;
+    font-size: 14px; z-index: 999; opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none; box-shadow: var(--shadow-float);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: rgba(255, 59, 48, 0.92); }
+
+  /* 调试面板 */
+  details.debug {
+    margin-top: 20px; background: rgba(29, 29, 31, 0.94);
+    border-radius: 14px; padding: 0; overflow: hidden;
+  }
+  details.debug summary { padding: 12px 18px; color: #a1a1a6; cursor: pointer; font-size: 13px; user-select: none; }
+  details.debug pre {
+    padding: 14px 18px; color: #e5e5ea; font-size: 12px;
+    overflow-x: auto; max-height: 400px;
+    font-family: 'SF Mono', Consolas, monospace;
+  }
+
+  .loading-bar {
+    display: none; margin-bottom: 12px; padding: 11px 18px;
+    background: var(--accent-soft); color: var(--accent);
+    border-radius: 12px; font-size: 14px; text-align: center;
+  }
+  .loading-bar.show { display: block; }
+
+  /* Token 输入 */
+  .token-input {
+    width: 100%; padding: 13px 16px; border: 1px solid var(--border);
+    border-radius: 12px; font-size: 13px; outline: none;
+    font-family: 'SF Mono', Consolas, monospace;
+    background: var(--bg-primary); color: var(--text-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    margin-bottom: 12px;
+  }
+  .token-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .muted { color: var(--text-secondary); font-size: 13px; }
+  .warning-box {
+    background: var(--orange-soft); color: var(--orange); border-radius: 10px;
+    padding: 10px 16px; font-size: 13px; margin-bottom: 14px;
+  }
+
+  /* 人员搜索 */
+  .person-search { position: relative; margin-bottom: 14px; }
+  .person-search input {
+    width: 100%; padding: 12px 18px; border: 1px solid var(--border);
+    border-radius: 12px; font-size: 14px; outline: none;
+    background: var(--bg-primary); color: var(--text-primary);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .person-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .person-search input::placeholder { color: var(--text-secondary); }
+  .search-candidates {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 60;
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: 14px;
+    max-height: 250px; overflow-y: auto;
+    box-shadow: var(--shadow-float);
+  }
+  .search-candidates .cand {
+    padding: 11px 16px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; gap: 12px;
+    transition: background 0.12s ease;
+  }
+  .search-candidates .cand:hover, .search-candidates .cand.active { background: var(--accent-soft); }
+  .search-candidates .cand + .cand { border-top: 1px solid var(--border); }
+  .search-candidates .cand .cand-name { font-weight: 500; min-width: 84px; }
+  .search-candidates .cand .cand-mobile { color: var(--text-secondary); font-size: 12px; flex: 1; }
+  .search-candidates .empty-hint { padding: 14px 16px; color: var(--text-secondary); font-size: 13px; text-align: center; }
+
+  /* 人员状态卡片（去掉入场动画，减少弹窗内合成层） */
+  .person-result {
+    background: var(--gray-soft); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px;
+  }
+  .person-result .pr-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .person-result .pr-name { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .pr-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px 18px; margin-bottom: 12px;
+  }
+  .pr-grid .pr-item { font-size: 13px; }
+  .pr-grid .pr-item .pr-label { color: var(--text-secondary); font-size: 12px; margin-right: 6px; }
+  .pr-att {
+    background: var(--bg-primary); border-radius: 10px; padding: 12px 16px;
+    font-size: 13px; line-height: 2; border: 1px solid var(--border);
+  }
+  .pr-att .att-ok { color: var(--green); font-weight: 600; }
+  .pr-att .att-miss { color: var(--red); font-weight: 600; }
+  .pr-att .mode {
+    display: inline-block; background: var(--gray-soft); border-radius: 980px;
+    padding: 1px 8px; font-size: 12px; margin: 0 4px; color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- 顶部 -->
+  <header>
+    <div class="logo">
+      <div class="logo-row">
+        <img src="/static/logo.svg" alt="i志愿" class="logo-img">
+        <h1>考勤比对工具</h1>
+      </div>
+      <p>活动名单 vs 考勤记录 → 找出未签到/签退人员</p>
+    </div>
+    <div class="header-right">
+      <span id="loginBadge" class="login-badge badge-wait">检测中…</span>
+      <button class="btn-outline btn-sm" onclick="openTokenModal()">粘贴 Token</button>
+    </div>
+  </header>
+
+  <!-- 登录说明 -->
+  <div id="loginHint" class="card" style="display:none;">
+    <div class="card-title">👋 请先登录</div>
+    <p class="muted" style="line-height:1.9">
+      1. 用你<b>平时使用的浏览器</b>（Edge/Chrome）打开并登录
+      <code>https://www.gdzyz.cn/admin/</code>（正常完成滑块验证）<br>
+      2. 登录后按 <b>F12</b> → 切到 <b>Console</b> → 输入下面命令回车：<br>
+      <code style="background:var(--gray-soft);padding:2px 8px;border-radius:4px;">
+      decodeURIComponent(document.cookie.split('IZYZ_org_token=')[1].split(';')[0])</code><br>
+      3. 复制输出结果 → 点右上角 <b>「粘贴 Token」</b> 粘贴进来<br>
+    </p>
+  </div>
+
+  <!-- 活动列表 -->
+  <div class="card" id="activityCard" style="display:none;">
+    <div class="card-title">
+      <span>活动列表 <small>（按开始时间排序，前 10 个）</small></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-outline btn-sm" onclick="loadActivities()">🔄 刷新</button>
+        <button class="btn-primary btn-sm" onclick="compareAll()">⚡ 一键比对全部</button>
+      </div>
+    </div>
+    <div id="loadingBar" class="loading-bar">⏳ 正在加载，请稍候…</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>活动名称</th>
+          <th>开始时间</th>
+          <th class="num">参加</th>
+          <th class="num">已签到<sup title="已签到含未签退">*</sup></th>
+          <th class="num">已签退</th>
+          <th class="num">未签到</th>
+          <th style="width:160px">操作</th>
+        </tr>
+      </thead>
+      <tbody id="activityBody">
+        <tr><td colspan="7" class="empty">暂无数据</td></tr>
+      </tbody>
+    </table>
+    <div id="activityWarn" style="display:none;"></div>
+  </div>
+
+  <!-- 调试面板 -->
+  <details class="debug">
+    <summary>🔧 调试面板（接口字段校准）</summary>
+    <pre id="debugContent">尚未获取调试数据。点击任意接口调用后，这里会显示最近一次原始返回。</pre>
+  </details>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-mask" id="detailModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="detailTitle">活动详情</h3>
+      <button class="btn-outline btn-sm" onclick="closeModal()">✕ 关闭</button>
+    </div>
+    <div class="modal-body">
+      <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+        <div class="stat stat-primary"><div class="num" id="dAttendees">-</div><div class="label">参加总人数</div></div>
+        <div class="stat stat-success"><div class="num" id="dSignedBoth">-</div><div class="label">已签到+已签退</div></div>
+        <div class="stat stat-warn"><div class="num" id="dSignedNoOut">-</div><div class="label">已签到未签退</div></div>
+        <div class="stat stat-danger"><div class="num" id="dNotSigned">-</div><div class="label">未签到</div></div>
+      </div>
+      <div id="dWarnings"></div>
+      <!-- 人员检索 -->
+      <div class="person-search">
+        <input id="personSearchInput" type="text" placeholder="🔍 输入姓名检索人员（如：张）"
+               autocomplete="off"
+               oninput="onSearchInput(this.value)"
+               onfocus="onSearchInput(this.value)"
+               onblur="hideCandidates()">
+        <div id="personCandidates" class="search-candidates" style="display:none;"></div>
+      </div>
+      <div id="personResult" style="display:none;"></div>
+      <div class="tabs">
+        <div class="tab active" data-tab="signed_both" onclick="switchTab(this)">✅ 已签到+已签退 <span class="count" id="tabSignedBothCount">0</span></div>
+        <div class="tab" data-tab="signed_no_checkout" onclick="switchTab(this)">🕐 已签到未签退 <span class="count" id="tabSignedNoOutCount">0</span></div>
+        <div class="tab" data-tab="notsigned" onclick="switchTab(this)">⚠️ 未签到 <span class="count" id="tabNotSignedCount">0</span></div>
+        <div class="tab" data-tab="anomalies" onclick="switchTab(this)">❓ 异常记录 <span class="count" id="tabAnomalyCount">0</span></div>
+      </div>
+      <div id="detailTable"></div>
+    </div>
+    <div class="modal-foot">
+      <span class="muted" id="detailMatchNote"></span>
+      <span class="muted" id="detailRefreshTime"></span>
+      <button class="btn-outline" onclick="refreshDetail()">🔄 刷新数据</button>
+      <button class="btn-primary" onclick="exportExcel()">📥 导出 Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Token 弹窗 -->
+<div class="modal-mask" id="tokenModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-head"><h3>🔑 粘贴 Token</h3><button class="btn-outline btn-sm" onclick="closeTokenModal()">✕</button></div>
+    <div class="modal-body">
+      <p class="muted" style="line-height:1.7;margin-bottom:12px;">
+        1. 用浏览器登录 <code>https://www.gdzyz.cn/admin/</code><br>
+        2. 按 <b>F12</b> 打开开发者工具 → 切到 <b>Console</b> 控制台<br>
+        3. 输入以下命令并回车：<br>
+        <code style="background:var(--gray-soft);padding:4px 10px;border-radius:4px;display:inline-block;margin:6px 0;">decodeURIComponent(document.cookie.split('IZYZ_org_token=')[1].split(';')[0])</code><br>
+        4. 把输出的字符串复制粘贴到下方：
+      </p>
+      <textarea id="tokenInput" class="token-input" rows="3" placeholder="粘贴 token 字符串…"></textarea>
+    </div>
+    <div class="modal-foot"><button class="btn-primary" onclick="submitToken()">保存 Token</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ---------- 工具函数 ----------
+let detailData = null;      // 当前详情数据
+let currentMissionId = null;
+let allCompare = [];        // 一键比对缓存
+
+function $(id) { return document.getElementById(id); }
+
+function showToast(msg, isError = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+async function api(path, options = {}) {
+  const resp = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  if (!resp.ok) {
+    let detail = '请求失败 ' + resp.status;
+    try {
+      const j = await resp.json();
+      detail = j.detail || detail;
+    } catch (e) {}
+    throw new Error(detail);
+  }
+  return resp.json();
+}
+
+function fmt(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return String(v);
+}
+
+// ---------- 登录状态 ----------
+let _lastTokenValid = null;   // 上次检测到的登录状态（避免重复全量刷新）
+let _activitiesLoaded = false;
+
+async function refreshStatus() {
+  try {
+    const st = await api('/api/status');
+    const badge = $('loginBadge');
+    const nowValid = !!(st.logged_in && st.token_valid);
+    const changed = (nowValid !== _lastTokenValid);
+    _lastTokenValid = nowValid;
+
+    if (nowValid) {
+      badge.className = 'login-badge badge-ok';
+      badge.textContent = '● 已登录';
+      $('loginHint').style.display = 'none';
+      $('activityCard').style.display = '';
+      // 仅在刚变为已登录或列表尚未加载时拉取，避免每 30 秒全量刷新卡顿
+      if (!_activitiesLoaded || changed) {
+        _activitiesLoaded = true;
+        loadActivities();
+      }
+    } else if (st.logged_in && !st.token_valid) {
+      _activitiesLoaded = false;
+      badge.className = 'login-badge badge-fail';
+      badge.textContent = '● Token 失效';
+      $('loginHint').style.display = '';
+      $('activityCard').style.display = 'none';
+    } else {
+      _activitiesLoaded = false;
+      badge.className = 'login-badge badge-wait';
+      badge.textContent = '○ 未登录';
+      $('loginHint').style.display = '';
+      $('activityCard').style.display = 'none';
+    }
+  } catch (e) {
+    $('loginBadge').className = 'login-badge badge-fail';
+    $('loginBadge').textContent = '⚠ 后端未连接';
+  }
+}
+
+// ---------- Token 弹窗 ----------
+function openTokenModal() { $('tokenModal').classList.add('show'); $('tokenInput').value = ''; }
+function closeTokenModal() { $('tokenModal').classList.remove('show'); }
+async function submitToken() {
+  const token = $('tokenInput').value.trim();
+  if (!token) { showToast('请先粘贴 Token', true); return; }
+  try {
+    await api('/api/login/token', { method: 'POST', body: JSON.stringify({ token }) });
+    closeTokenModal();
+    showToast('Token 已保存，正在验证…');
+    refreshStatus();
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ---------- 活动列表 ----------
+function renderActivities(acts, total) {
+  const body = $('activityBody');
+  if (!acts || acts.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">暂无活动数据（可能接口字段未校准，请看调试面板）</td></tr>';
+    return;
+  }
+  // 批量 innerHTML，减少 DOM 回流
+  body.innerHTML = acts.map((a, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><b>${fmt(a.name)}</b><br><span class="muted">ID: ${fmt(a.id)}</span></td>
+      <td>${fmt(a.startTime)}</td>
+      <td class="num">${a._stats ? a._stats.attendee_total : '—'}</td>
+      <td class="num">${a._stats ? '<span class="tag tag-blue" title="已签到（含未签退）">' + a._stats.signed_total + '</span>' : '—'}</td>
+      <td class="num">${a._stats ? '<span class="tag tag-green">' + a._stats.signed_both + '</span>' : '—'}</td>
+      <td class="num">${a._stats ? '<span class="tag tag-red">' + a._stats.not_signed_total + '</span>' : '—'}</td>
+      <td>
+        <button class="btn-link" onclick="refreshActivity('${a.id}')">🔄 刷新</button>
+        <button class="btn-link" onclick="openDetail('${a.id}')">查看详情</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadActivities() {
+  $('loadingBar').classList.add('show');
+  try {
+    const data = await api('/api/activities');
+    window._activities = data.activities || [];
+    renderActivities(window._activities, data.total);
+    if (data.warning) {
+      const w = $('activityWarn');
+      w.style.display = '';
+      w.className = 'warning-box';
+      w.textContent = '⚠ ' + data.warning;
+    }
+    refreshDebug();
+  } catch (e) {
+    showToast(e.message, true);
+  } finally {
+    $('loadingBar').classList.remove('show');
+  }
+}
+
+// ---------- 刷新单个活动人员状态 ----------
+async function refreshActivity(missionId) {
+  const btn = event && event.target;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+  try {
+    const d = await api(`/api/activity/${missionId}/detail`);
+    // 更新列表缓存中的该活动统计
+    const acts = window._activities || [];
+    const act = acts.find(x => String(x.id) === String(missionId));
+    if (act) act._stats = d.stats;
+    // 更新已比对缓存
+    const ci = allCompare.findIndex(x => String(x.id) === String(missionId));
+    if (ci >= 0) allCompare[ci].stats = d.stats;
+    else allCompare.push({ id: missionId, name: (act && act.name) || missionId, stats: d.stats });
+    renderActivities(acts);
+    // 如果详情弹窗正打开这个活动，同步刷新弹窗
+    if (currentMissionId && String(currentMissionId) === String(missionId)) {
+      detailData = d;
+      renderDetail();
+    }
+    showToast(`✅ ${d.stats.not_signed_total > 0 ? '已刷新：' + d.stats.not_signed_total + ' 人未签到' : '已刷新：全部签到'}`);
+  } catch (e) {
+    showToast('刷新失败：' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新'; }
+  }
+}
+
+// ---------- 一键比对全部 ----------
+async function compareAll() {
+  try {
+    const data = await api('/api/activities');
+    const acts = data.activities || [];
+    if (acts.length === 0) { showToast('没有可比对的活动', true); return; }
+    $('loadingBar').classList.add('show');
+    allCompare = [];
+    for (let i = 0; i < acts.length; i++) {
+      $('loadingBar').textContent = `⏳ 正在比对 (${i + 1}/${acts.length})：${acts[i].name || '活动'}`;
+      try {
+        const d = await api(`/api/activity/${acts[i].id}/detail`);
+        acts[i]._stats = d.stats;
+        allCompare.push({ id: acts[i].id, name: acts[i].name, stats: d.stats });
+      } catch (e) {
+        acts[i]._stats = null;
+      }
+    }
+    renderActivities(acts);
+    window._activities = acts;
+    const missing = allCompare.reduce((s, x) => s + (x.stats ? x.stats.not_signed_total : 0), 0);
+    showToast(`✅ 比对完成：${allCompare.length} 个活动，累计未签到 ${missing} 人`);
+  } catch (e) {
+    showToast(e.message, true);
+  } finally {
+    $('loadingBar').classList.remove('show');
+    $('loadingBar').textContent = '⏳ 正在加载，请稍候…';
+  }
+}
+
+// ---------- 详情弹窗 ----------
+async function openDetail(missionId) {
+  currentMissionId = missionId;
+  // 清空人员检索状态
+  const ps = $('personSearchInput'); if (ps) ps.value = '';
+  const pr = $('personResult'); if (pr) { pr.style.display = 'none'; pr.innerHTML = ''; }
+  const pc = $('personCandidates'); if (pc) pc.style.display = 'none';
+  $('detailModal').classList.add('show');
+  $('detailTitle').textContent = '活动详情（加载中…）';
+  $('detailTable').innerHTML = '<div class="empty">⏳ 正在拉取名单与考勤数据…</div>';
+  try {
+    const d = await api(`/api/activity/${missionId}/detail`);
+    detailData = d;
+    renderDetail();
+    refreshDebug();
+  } catch (e) {
+    $('detailTable').innerHTML = `<div class="empty">❌ 加载失败：${e.message}</div>`;
+  }
+}
+
+function renderDetail() {
+  if (!detailData) return;
+  const d = detailData;
+  const nameEl = $('detailTitle');
+  // 尝试显示活动名
+  const acts = window._activities || [];
+  const act = acts.find(x => String(x.id) === String(currentMissionId));
+  nameEl.textContent = `活动详情${act && act.name ? '：' + act.name : ' (' + currentMissionId + ')'}`;
+  $('dAttendees').textContent = d.stats.attendee_total;
+  $('dSignedBoth').textContent = d.stats.signed_both;
+  $('dSignedNoOut').textContent = d.stats.signed_no_checkout;
+  $('dNotSigned').textContent = d.stats.not_signed_total;
+  $('tabSignedBothCount').textContent = d.stats.signed_both;
+  $('tabSignedNoOutCount').textContent = d.stats.signed_no_checkout;
+  $('tabNotSignedCount').textContent = d.stats.not_signed_total;
+  $('tabAnomalyCount').textContent = d.stats.anomaly_total;
+  const warnBox = $('dWarnings');
+  if (d.warnings && d.warnings.length) {
+    warnBox.style.display = '';
+    warnBox.className = 'warning-box';
+    warnBox.innerHTML = d.warnings.map(w => '⚠ ' + w).join('<br>');
+  } else {
+    warnBox.style.display = 'none';
+  }
+  $('detailMatchNote').textContent = '匹配：证件号(userid) → 手机号 → 姓名';
+  $('detailRefreshTime').textContent = '更新于 ' + new Date().toLocaleTimeString();
+  switchTab(document.querySelector('.tab.active') || document.querySelector('.tab'));
+}
+
+async function refreshDetail() {
+  if (!currentMissionId) return;
+  const btn = event && event.target;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+  try {
+    const d = await api(`/api/activity/${currentMissionId}/detail`);
+    detailData = d;
+    renderDetail();
+    // 同步列表行统计
+    const acts = window._activities || [];
+    const act = acts.find(x => String(x.id) === String(currentMissionId));
+    if (act) act._stats = d.stats;
+    const ci = allCompare.findIndex(x => String(x.id) === String(currentMissionId));
+    if (ci >= 0) allCompare[ci].stats = d.stats;
+    renderActivities(acts);
+    refreshDebug();
+    showToast(`✅ 已刷新：${d.stats.not_signed_total > 0 ? d.stats.not_signed_total + ' 人未签到' : '全部签到'}`);
+  } catch (e) {
+    showToast('刷新失败：' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新数据'; }
+  }
+}
+
+// ---------- 人员检索 ----------
+let _searchTimer = null;
+
+function _personName(p) {
+  return val(p, ['hireUsername','userName','realName','name','volunteerName','nickName']) || '';
+}
+
+function _modeTxt(mode) {
+  // 签到/签退方式：1=签到，2=签退等（部分活动可能为补录），显示原始值+通用提示
+  if (mode === undefined || mode === null || mode === '') return '—';
+  return String(mode);
+}
+
+function onSearchInput(keyword) {
+  // 防抖：停止输入 120ms 后才过滤，避免每敲一个字符全量渲染候选
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => doSearch(keyword), 120);
+}
+
+function doSearch(keyword) {
+  keyword = (keyword || '').trim();
+  const box = $('personCandidates');
+  if (!detailData || !detailData.attendees) { box.style.display = 'none'; return; }
+  if (!keyword) { box.style.display = 'none'; return; }
+
+  const kw = keyword.toLowerCase();
+  const matches = detailData.attendees.filter(x => {
+    const name = (_personName(x) || '').toLowerCase();
+    const mob = val(x, ['mobile']) || '';
+    return name.includes(kw) || mob.replace(/\*/g, '').includes(kw);
+  }).slice(0, 10);
+
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="empty-hint">名单中未找到包含“' + keyword + '”的人</div>';
+    box.style.display = '';
+    return;
+  }
+
+  box.innerHTML = matches.map((x, idx) => {
+    const name = _personName(x) || '未知';
+    const mob = val(x, ['mobile']) || '—';
+    const attRec = (detailData.signed_both || []).some(r =>
+      r.person && String(r.person.userid) === String(x.userid));
+    const attNoOut = (detailData.signed_no_checkout || []).some(r =>
+      r.person && String(r.person.userid) === String(x.userid));
+    const tag = attRec
+      ? '<span class="tag tag-green">已签到已签退</span>'
+      : (attNoOut ? '<span class="tag tag-orange">已签到未签退</span>'
+                  : '<span class="tag tag-red">未签到</span>');
+    return `<div class="cand" onmousedown="event.preventDefault()"
+      onclick="selectPerson('${x.userid}')">
+      <span class="cand-name">${name}</span>
+      <span class="cand-mobile">${mob}</span>
+      ${tag}
+    </div>`;
+  }).join('');
+  box.style.display = '';
+}
+
+function hideCandidates() {
+  setTimeout(() => { $('personCandidates').style.display = 'none'; }, 150);
+}
+
+function selectPerson(userid) {
+  if (!detailData) return;
+  $('personCandidates').style.display = 'none';
+  const person = detailData.attendees.find(x => String(x.userid) === String(userid));
+  if (!person) { showToast('未找到该人员', true); return; }
+  $('personSearchInput').value = _personName(person);
+  const bothRec = (detailData.signed_both || []).find(r =>
+    r.person && String(r.person.userid) === String(userid));
+  const noOutRec = (detailData.signed_no_checkout || []).find(r =>
+    r.person && String(r.person.userid) === String(userid));
+  const notRec = (detailData.not_signed || []).find(r =>
+    r.person && String(r.person.userid) === String(userid));
+  const rec = bothRec || noOutRec || notRec;
+  renderPersonCard(person, rec, !!bothRec, !!noOutRec);
+  // 在人员列表中滚动到该人（若在当前 tab 可见）
+  const curTab = document.querySelector('.tab.active');
+  if (curTab && curTab.dataset.tab !== 'anomalies') {
+    const rows = document.querySelectorAll('#detailTable tbody tr');
+    for (const row of rows) {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 2 && cells[1].innerText.includes(_personName(person))) {
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        row.style.background = 'var(--accent-soft)';
+        setTimeout(() => { row.style.background = ''; }, 2500);
+        break;
+      }
+    }
+  }
+}
+
+function renderPersonCard(person, rec, isBoth, isNoOut) {
+  const name = _personName(person) || '未知';
+  const gender = val(person, ['gender','sex']);
+  const genderTxt = (gender === 1 || gender === '1') ? '男'
+    : ((gender === 2 || gender === '2') ? '女' : (gender || '—'));
+  const mobile = val(person, ['mobile']) || '—';
+  const userid = val(person, ['userid','userId']) || '';
+  const uidShort = userid ? userid.slice(0, 8) + '…' : '—';
+  const signTime = val(person, ['signDatetime','enrollTime','applyTime','addtime']) || '—';
+  const hireTime = val(person, ['selectedDatetime','hireTime','employTime']) || '—';
+  const jobs = val(person, ['timesJobs','timesJobIds']) || '—';
+
+  let attHtml;
+  const att = rec && rec.attendance_record;
+  if (att) {
+    const onMode = _modeTxt(att.checkOnMode);
+    const outMode = _modeTxt(att.checkOutMode);
+    const onTime = val(att, ['attendanceStartTime','startDatetime']) || '—';
+    const outTime = val(att, ['attendanceEndTime','endDatetime']) || '—';
+    const minutes = att.serviceMinute;
+    const addr = val(att, ['address','bakAddress']) || '';
+    const onHtml = '<span class="att-ok">✅ 已签到</span> <span class="mode">方式' + onMode + '</span> ' + onTime;
+    const outHtml = hasCheckout(att)
+      ? '<span class="att-ok">✅ 已签退</span> <span class="mode">方式' + outMode + '</span> ' + outTime
+      : '<span class="att-miss">⚠️ 未签退</span>';
+    attHtml = '<div>' + onHtml + ' ｜ ' + outHtml + '</div>'
+      + '<div>服务时长：' + (minutes !== undefined && minutes !== null ? minutes + ' 分钟' : '—') + '</div>'
+      + (addr ? '<div class="muted">地址：' + (addr.length > 60 ? addr.slice(0, 60) + '…' : addr) + '</div>' : '');
+  } else {
+    attHtml = '<div><span class="att-miss">⚠️ 未签到</span>（在名单中，但尚无考勤记录）</div>';
+  }
+
+  const statusTag = isBoth
+    ? '<span class="tag tag-green">✅ 已签到+已签退</span>'
+    : (isNoOut ? '<span class="tag tag-orange">🕐 已签到未签退</span>'
+               : '<span class="tag tag-red">⚠️ 未签到</span>');
+
+  $('personResult').innerHTML = `
+    <div class="person-result">
+      <div class="pr-head">
+        <span class="pr-name">${name} ${genderTxt}</span>
+        ${statusTag}
+      </div>
+      <div class="pr-grid">
+        <div class="pr-item"><span class="pr-label">手机号</span>${mobile}</div>
+        <div class="pr-item"><span class="pr-label">唯一ID</span>${uidShort}</div>
+        <div class="pr-item"><span class="pr-label">岗位</span>${jobs}</div>
+        <div class="pr-item"><span class="pr-label">报名时间</span>${signTime}</div>
+        <div class="pr-item"><span class="pr-label">录用时间</span>${hireTime}</div>
+      </div>
+      <div class="pr-att">${attHtml}</div>
+    </div>`;
+  $('personResult').style.display = '';
+  $('personResult').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function switchTab(tabEl) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tabEl.classList.add('active');
+  if (!detailData) return;
+  const tab = tabEl.dataset.tab;
+  let rows;
+  let emptyText;
+  if (tab === 'signed_both') { rows = detailData.signed_both; emptyText = '暂无已签到且已签退的人员'; }
+  else if (tab === 'signed_no_checkout') { rows = detailData.signed_no_checkout; emptyText = '🎉 所有已签到人员均已签退！'; }
+  else if (tab === 'notsigned') { rows = detailData.not_signed; emptyText = '🎉 全部人员均已签到！'; }
+  else { rows = detailData.anomalies; emptyText = '暂无异常记录'; }
+
+  if (!rows || rows.length === 0) {
+    $('detailTable').innerHTML = `<div class="empty">${emptyText}</div>`;
+    return;
+  }
+  let html = `<table class="people-table">
+    <thead><tr><th>#</th><th>姓名</th><th>性别</th><th>手机号</th><th>证件号</th><th>考勤状态</th><th>签到/签退时间</th><th>匹配方式</th></tr></thead><tbody>`;
+  rows.forEach((rec, i) => {
+    const p = rec.person || rec;
+    const name = val(p, ['realName','name','userName','hireUsername','volunteerName','nickName']);
+    const gender = val(p, ['gender','sex']);
+    const phone = val(p, ['mobile','phone','phoneNo','mobileNo','tel']);
+    const idv = val(p, ['idCard','idcard','cardId','cardNo','idNumber','IDCard','volunteerCardCode','cardCode','userId']);
+    const att = rec.attendance_record;
+    const method = rec.match_method || (att ? '考勤记录' : '—');
+    // 考勤状态：区分已签到未签退
+    let statusHtml, timeHtml;
+    if (att && hasCheckout(att)) {
+      statusHtml = '<span class="tag tag-green">已签到+已签退</span>';
+      timeHtml = fmt(val(att, ['attendanceStartTime','startDatetime'])) + ' → ' + fmt(val(att, ['attendanceEndTime','endDatetime']));
+    } else if (att) {
+      statusHtml = '<span class="tag tag-orange">已签到未签退</span>';
+      timeHtml = fmt(val(att, ['attendanceStartTime','startDatetime'])) + ' → 未签退';
+    } else {
+      statusHtml = '<span class="tag tag-red">未签到</span>';
+      timeHtml = '—';
+    }
+    html += `<tr>
+      <td>${i + 1}</td>
+      <td><b>${fmt(name)}</b></td>
+      <td>${fmt(gender)}</td>
+      <td>${fmt(phone)}</td>
+      <td>${fmt(idv)}</td>
+      <td>${statusHtml}</td>
+      <td>${timeHtml}</td>
+      <td>${fmt(method)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  $('detailTable').innerHTML = html;
+}
+
+function hasCheckout(att) {
+  if (!att) return false;
+  for (const k of ['checkOutMode','endDatetime','attendanceEndTime']) {
+    const v = att[k];
+    if (v !== undefined && v !== null && v !== '' && v !== 'null') return true;
+  }
+  return false;
+}
+
+function val(obj, keys) {
+  if (!obj || typeof obj !== 'object') return '';
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return obj[k];
+  }
+  return '';
+}
+
+function closeModal() { $('detailModal').classList.remove('show'); }
+
+async function exportExcel() {
+  if (!currentMissionId) return;
+  try {
+    const resp = await fetch(`/api/activity/${currentMissionId}/export`);
+    if (!resp.ok) { const j = await resp.json().catch(() => ({})); throw new Error(j.detail || '导出失败'); }
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^";]+)"?/);
+    a.download = m ? m[1] : '考勤比对.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('✅ 已导出 Excel');
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+// ---------- 调试 ----------
+async function refreshDebug() {
+  try {
+    const d = await api('/api/debug/last');
+    if (d && d.response !== undefined) {
+      $('debugContent').textContent = JSON.stringify(d, null, 2);
+    }
+  } catch (e) {}
+}
+
+// ---------- 初始化 ----------
+refreshStatus();
+setInterval(refreshStatus, 30000); // 每 30 秒检查一次登录状态
+
+</script>
+</body>
+</html>

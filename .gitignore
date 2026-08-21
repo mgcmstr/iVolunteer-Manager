@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# 敏感信息（登录凭证，切勿提交）
+token.json
+debug_last.json
+
+# 运行数据（导出文件、浏览器登录痕迹）
+exports/
+ui_shots/
+edge_profile/
+edge_profile_diag/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 系统
+.DS_Store
+Thumbs.db
