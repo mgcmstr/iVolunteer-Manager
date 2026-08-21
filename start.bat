@@ -1,18 +1,17 @@
 @echo off
-chcp 936 >nul
-title i志愿 考勤比对工具
+title iVolunteer Manager Tool
 cd /d "%~dp0"
 
 if not exist venv\Scripts\python.exe (
-    echo [提示] 首次使用请先双击 setup.bat 安装环境！
+    echo [INFO] First time? Run setup.bat first to install dependencies.
     pause
     exit /b 1
 )
 
 echo ============================================
-echo    i志愿 考勤比对工具
-echo    浏览器将自动打开: http://localhost:8000
-echo    按 Ctrl+C 停止服务
+echo    iVolunteer Manager Tool
+echo    Browser will open: http://localhost:8000
+echo    Press Ctrl+C to stop
 echo ============================================
 echo.
 
